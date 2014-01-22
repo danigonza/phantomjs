@@ -108,94 +108,65 @@ void CSSFontSelector::addFontFaceRule(const CSSFontFaceRule* fontFaceRule)
     unsigned traitsMask = 0;
 
     if (RefPtr<CSSValue> fontStyle = style->getPropertyCSSValue(CSSPropertyFontStyle)) {
-        if (fontStyle->isPrimitiveValue()) {
-            RefPtr<CSSValueList> list = CSSValueList::createCommaSeparated();
-            list->append(fontStyle);
-            fontStyle = list;
-        } else if (!fontStyle->isValueList())
+        if (!fontStyle->isPrimitiveValue())
             return;
 
-        CSSValueList* styleList = static_cast<CSSValueList*>(fontStyle.get());
-        unsigned numStyles = styleList->length();
-        if (!numStyles)
-            return;
-
-        for (unsigned i = 0; i < numStyles; ++i) {
-            switch (static_cast<CSSPrimitiveValue*>(styleList->itemWithoutBoundsCheck(i))->getIdent()) {
-                case CSSValueAll:
-                    traitsMask |= FontStyleMask;
-                    break;
-                case CSSValueNormal:
-                    traitsMask |= FontStyleNormalMask;
-                    break;
-                case CSSValueItalic:
-                case CSSValueOblique:
-                    traitsMask |= FontStyleItalicMask;
-                    break;
-                default:
-                    break;
-            }
+        switch (static_cast<CSSPrimitiveValue*>(fontStyle.get())->getIdent()) {
+        case CSSValueNormal:
+            traitsMask |= FontStyleNormalMask;
+            break;
+        case CSSValueItalic:
+        case CSSValueOblique:
+            traitsMask |= FontStyleItalicMask;
+            break;
+        default:
+            break;
         }
     } else
-        traitsMask |= FontStyleMask;
+        traitsMask |= FontStyleNormalMask;
 
     if (RefPtr<CSSValue> fontWeight = style->getPropertyCSSValue(CSSPropertyFontWeight)) {
-        if (fontWeight->isPrimitiveValue()) {
-            RefPtr<CSSValueList> list = CSSValueList::createCommaSeparated();
-            list->append(fontWeight);
-            fontWeight = list;
-        } else if (!fontWeight->isValueList())
+        if (!fontWeight->isPrimitiveValue())
             return;
 
-        CSSValueList* weightList = static_cast<CSSValueList*>(fontWeight.get());
-        unsigned numWeights = weightList->length();
-        if (!numWeights)
-            return;
-
-        for (unsigned i = 0; i < numWeights; ++i) {
-            switch (static_cast<CSSPrimitiveValue*>(weightList->itemWithoutBoundsCheck(i))->getIdent()) {
-                case CSSValueAll:
-                    traitsMask |= FontWeightMask;
-                    break;
-                case CSSValueBolder:
-                case CSSValueBold:
-                case CSSValue700:
-                    traitsMask |= FontWeight700Mask;
-                    break;
-                case CSSValueNormal:
-                case CSSValue400:
-                    traitsMask |= FontWeight400Mask;
-                    break;
-                case CSSValue900:
-                    traitsMask |= FontWeight900Mask;
-                    break;
-                case CSSValue800:
-                    traitsMask |= FontWeight800Mask;
-                    break;
-                case CSSValue600:
-                    traitsMask |= FontWeight600Mask;
-                    break;
-                case CSSValue500:
-                    traitsMask |= FontWeight500Mask;
-                    break;
-                case CSSValue300:
-                    traitsMask |= FontWeight300Mask;
-                    break;
-                case CSSValueLighter:
-                case CSSValue200:
-                    traitsMask |= FontWeight200Mask;
-                    break;
-                case CSSValue100:
-                    traitsMask |= FontWeight100Mask;
-                    break;
-                default:
-                    break;
-            }
+        switch (static_cast<CSSPrimitiveValue*>(fontWeight.get())->getIdent()) {
+        case CSSValueBold:
+        case CSSValue700:
+            traitsMask |= FontWeight700Mask;
+            break;
+        case CSSValueNormal:
+        case CSSValue400:
+            traitsMask |= FontWeight400Mask;
+            break;
+        case CSSValue900:
+            traitsMask |= FontWeight900Mask;
+            break;
+        case CSSValue800:
+            traitsMask |= FontWeight800Mask;
+            break;
+        case CSSValue600:
+            traitsMask |= FontWeight600Mask;
+            break;
+        case CSSValue500:
+            traitsMask |= FontWeight500Mask;
+            break;
+        case CSSValue300:
+            traitsMask |= FontWeight300Mask;
+            break;
+        case CSSValue200:
+            traitsMask |= FontWeight200Mask;
+            break;
+        case CSSValue100:
+            traitsMask |= FontWeight100Mask;
+            break;
+        default:
+            break;
         }
     } else
-        traitsMask |= FontWeightMask;
+        traitsMask |= FontWeight400Mask;
 
     if (RefPtr<CSSValue> fontVariant = style->getPropertyCSSValue(CSSPropertyFontVariant)) {
+        // font-variant descriptor can be a value list
         if (fontVariant->isPrimitiveValue()) {
             RefPtr<CSSValueList> list = CSSValueList::createCommaSeparated();
             list->append(fontVariant);
@@ -210,9 +181,6 @@ void CSSFontSelector::addFontFaceRule(const CSSFontFaceRule* fontFaceRule)
 
         for (unsigned i = 0; i < numVariants; ++i) {
             switch (static_cast<CSSPrimitiveValue*>(variantList->itemWithoutBoundsCheck(i))->getIdent()) {
-                case CSSValueAll:
-                    traitsMask |= FontVariantMask;
-                    break;
                 case CSSValueNormal:
                     traitsMask |= FontVariantNormalMask;
                     break;
@@ -420,6 +388,7 @@ static inline bool compareFontFaces(CSSFontFace* first, CSSFontFace* second)
     if (firstHasDesiredVariant != secondHasDesiredVariant)
         return firstHasDesiredVariant;
 
+    // We need to check font-variant css property for CSS2.1 compatibility.
     if ((desiredTraitsMaskForComparison & FontVariantSmallCapsMask) && !first->isLocalFallback() && !second->isLocalFallback()) {
         // Prefer a font that has indicated that it can only support small-caps to a font that claims to support
         // all variants.  The specialized font is more likely to be true small-caps and not require synthesis.
@@ -462,8 +431,8 @@ static inline bool compareFontFaces(CSSFontFace* first, CSSFontFace* second)
         { FontWeight200Mask, FontWeight300Mask, FontWeight400Mask, FontWeight500Mask, FontWeight600Mask, FontWeight700Mask, FontWeight800Mask, FontWeight900Mask },
         { FontWeight100Mask, FontWeight300Mask, FontWeight400Mask, FontWeight500Mask, FontWeight600Mask, FontWeight700Mask, FontWeight800Mask, FontWeight900Mask },
         { FontWeight200Mask, FontWeight100Mask, FontWeight400Mask, FontWeight500Mask, FontWeight600Mask, FontWeight700Mask, FontWeight800Mask, FontWeight900Mask },
-        { FontWeight500Mask, FontWeight300Mask, FontWeight600Mask, FontWeight200Mask, FontWeight700Mask, FontWeight100Mask, FontWeight800Mask, FontWeight900Mask },
-        { FontWeight400Mask, FontWeight300Mask, FontWeight600Mask, FontWeight200Mask, FontWeight700Mask, FontWeight100Mask, FontWeight800Mask, FontWeight900Mask },
+        { FontWeight500Mask, FontWeight300Mask, FontWeight200Mask, FontWeight100Mask, FontWeight600Mask, FontWeight700Mask, FontWeight800Mask, FontWeight900Mask },
+        { FontWeight400Mask, FontWeight300Mask, FontWeight200Mask, FontWeight100Mask, FontWeight600Mask, FontWeight700Mask, FontWeight800Mask, FontWeight900Mask },
         { FontWeight700Mask, FontWeight800Mask, FontWeight900Mask, FontWeight500Mask, FontWeight400Mask, FontWeight300Mask, FontWeight200Mask, FontWeight100Mask },
         { FontWeight800Mask, FontWeight900Mask, FontWeight600Mask, FontWeight500Mask, FontWeight400Mask, FontWeight300Mask, FontWeight200Mask, FontWeight100Mask },
         { FontWeight900Mask, FontWeight700Mask, FontWeight600Mask, FontWeight500Mask, FontWeight400Mask, FontWeight300Mask, FontWeight200Mask, FontWeight100Mask },
